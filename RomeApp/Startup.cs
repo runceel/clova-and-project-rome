@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RomeApp.Repositories;
 
 namespace RomeApp
 {
@@ -31,8 +31,25 @@ namespace RomeApp
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            services.AddMvc()
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultChallengeScheme = MicrosoftAccountDefaults.AuthenticationScheme;
+                    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                })
+                .AddCookie()
+                .AddMicrosoftAccount(options =>
+                {
+                    options.ClientId = Configuration["appInfo:clientId"];
+                    options.ClientSecret = Configuration["appInfo:clientSecret"];
+                    options.Scope.Add("Device.Read");
+                    options.Scope.Add("Device.Command");
+                    options.SaveTokens = true;
+                });
+
+            services.AddSingleton<UserInfoRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -50,6 +67,7 @@ namespace RomeApp
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+            app.UseAuthentication();
             app.UseCookiePolicy();
 
             app.UseMvc(routes =>
